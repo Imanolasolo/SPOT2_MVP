@@ -10,21 +10,21 @@ import os
 
 st.set_page_config(page_title="Spot2 Conversational AI", page_icon="🏡", layout="wide")
 
-# Configurar API Key de OpenAI desde secrets
+# Configure OpenAI API Key from secrets
 OPENAI_API_KEY = st.secrets["openai"]["api_key"]
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
-# Cargar y procesar el PDF con ejemplos de propiedades
+# Load and process the PDF with property examples
 pdf_loader = PyPDFLoader("properties.pdf")
 documents = pdf_loader.load()
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 texts = text_splitter.split_documents(documents)
 
-# Crear un índice vectorial con FAISS
+# Create a vector index with FAISS
 embeddings = OpenAIEmbeddings()
 vectorstore = FAISS.from_documents(texts, embeddings)
 
-# Configurar el modelo conversacional con memoria
+# Configure the conversational model with memory
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 qa_chain = ConversationalRetrievalChain.from_llm(
     llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo"),
@@ -32,21 +32,21 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     memory=memory
 )
 
-# Estado inicial para los campos requeridos
+# Initial state for required fields
 if "conversation_data" not in st.session_state:
     st.session_state.conversation_data = {}
 if "missing_fields" not in st.session_state:
     st.session_state.missing_fields = ["budget", "size", "type", "city"]
 
-# Función para verificar campos faltantes
+# Function to check missing fields
 def check_missing_fields():
     return [key for key in ["budget", "size", "type", "city"] if key not in st.session_state.conversation_data]
 
-# UI en Streamlit
+# Streamlit UI
 st.title("🏡 Spot2 Conversational AI")
-st.write("Chatea conmigo para encontrar la mejor propiedad comercial para ti.")
+st.write("Chat with me to find the best commercial property for you.")
 
-# Historial de chat
+# Chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -54,16 +54,16 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Entrada de usuario
-txt = st.chat_input("Hola, soy Spoty, tu asistente,escribe tu mensaje aquí...")
+# User input
+txt = st.chat_input("Hi, I'm Spoty, your assistant. Write your message here...")
 
 if txt:
-    # Mostrar el mensaje del usuario
+    # Display the user's message
     st.session_state.messages.append({"role": "user", "content": txt})
     with st.chat_message("user"):
         st.markdown(txt)
 
-    # Verificar si faltan campos
+    # Check if there are missing fields
     if st.session_state.missing_fields:
         current_field = st.session_state.missing_fields[0]
         st.session_state.conversation_data[current_field] = txt
@@ -71,26 +71,26 @@ if txt:
 
         if st.session_state.missing_fields:
             next_field = st.session_state.missing_fields[0]
-            response = f"Gracias. Ahora, por favor proporciona tu {next_field}."
+            response = f"Thank you. Now, please provide your {next_field}."
         else:
-            # Todos los campos están completos, buscar en la base de datos
+            # All fields are complete, search the database
             query = (
-                f"Estoy buscando una propiedad con las siguientes características:\n"
-                f"Presupuesto: {st.session_state.conversation_data['budget']} USD\n"
-                f"Tamaño: {st.session_state.conversation_data['size']} m²\n"
-                f"Tipo: {st.session_state.conversation_data['type']}\n"
-                f"Ciudad: {st.session_state.conversation_data['city']}\n"
+                f"I'm looking for a property with the following characteristics:\n"
+                f"Budget: {st.session_state.conversation_data['budget']} USD\n"
+                f"Size: {st.session_state.conversation_data['size']} m²\n"
+                f"Type: {st.session_state.conversation_data['type']}\n"
+                f"City: {st.session_state.conversation_data['city']}\n"
             )
             response = qa_chain.run(query)
 
-            # Verificar si hay resultados
+            # Check if there are results
             if "No matching properties" in response or not response.strip():
-                response += "\nLo siento, no encontramos una propiedad con esas características en nuestra base de datos. Por favor, contacta a nuestro equipo en contacto@empresa.com para más ayuda."
+                response += "\nSorry, we couldn't find a property with those characteristics in our database. Please contact our team at contacto@empresa.com for further assistance."
     else:
-        # Si no hay campos faltantes, procesar directamente
+        # If there are no missing fields, process directly
         response = qa_chain.run(txt)
 
-    # Mostrar la respuesta del chatbot
+    # Display the chatbot's response
     st.session_state.messages.append({"role": "assistant", "content": response})
     with st.chat_message("assistant"):
         st.markdown(response)
