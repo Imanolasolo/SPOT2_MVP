@@ -4,3 +4,5 @@ openai
 faiss-cpu
 PyPDF2
 langchain_community
+pypdf
+
